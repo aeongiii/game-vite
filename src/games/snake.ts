@@ -5,6 +5,7 @@
 
 type Locale = "en" | "ko";
 type SpeedLevel = "slow" | "normal" | "fast";
+type DirectionName = "up" | "down" | "left" | "right";
 
 const GRID_SIZE = 24;
 const CELL_SIZE = 24;
@@ -30,7 +31,6 @@ const textByLocale: Record<
     speedSlow: string;
     speedNormal: string;
     speedFast: string;
-    mobileControls: string;
     descTitle1: string;
     descBody1: string;
     descTitle2: string;
@@ -47,12 +47,11 @@ const textByLocale: Record<
     gameOver: "Game Over",
     finalScore: "Final Score",
     restart: "Restart",
-    help: "Arrow keys / WASD / swipe / touch pad",
+    help: "Arrow keys / WASD or touch-and-hold joystick on the board",
     speed: "Speed",
     speedSlow: "Slow",
     speedNormal: "Normal",
     speedFast: "Fast",
-    mobileControls: "Touch Controls",
     descTitle1: "How To Play",
     descBody1:
       "Snake is a classic arcade game where you control a moving snake. Use the arrow keys or WASD keys to change direction. Collect apples to increase your score. Do not hit the wall or your own body.",
@@ -71,12 +70,11 @@ const textByLocale: Record<
     gameOver: "\uAC8C\uC784 \uC624\uBC84",
     finalScore: "\uCD5C\uC885 \uC810\uC218",
     restart: "\uB2E4\uC2DC \uC2DC\uC791",
-    help: "\uBC29\uD5A5\uD0A4 / WASD / \uC2A4\uC640\uC774\uD504 / \uD130\uCE58 \uD328\uB4DC",
+    help: "\uBC29\uD5A5\uD0A4 / WASD \uB610\uB294 \uAC8C\uC784\uD310 \uD130\uCE58 \uD6C4 \uC870\uC774\uC2A4\uD2F1 \uC870\uC791",
     speed: "\uC18D\uB3C4",
     speedSlow: "\uB290\uB9BC",
     speedNormal: "\uBCF4\uD1B5",
     speedFast: "\uBE60\uB984",
-    mobileControls: "\uD130\uCE58 \uC870\uC791",
     descTitle1: "\uAC8C\uC784 \uBC29\uBC95",
     descBody1:
       "\uC2A4\uB124\uC774\uD06C\uB294 \uC6C0\uC9C1\uC774\uB294 \uBC40\uC744 \uC870\uC791\uD558\uB294 \uD074\uB798\uC2DD \uC544\uCF00\uC774\uB4DC \uAC8C\uC784\uC785\uB2C8\uB2E4. \uBC29\uD5A5\uD0A4 \uB610\uB294 WASD \uD0A4\uB85C \uBC29\uD5A5\uC744 \uBC14\uAFB8\uC138\uC694. \uC0AC\uACFC\uB97C \uBA39\uC73C\uBA74 \uC810\uC218\uAC00 \uC62C\uB77C\uAC11\uB2C8\uB2E4. \uBCBD\uC774\uB098 \uC790\uC2E0\uC758 \uBAB8\uC5D0 \uBD80\uB52A\uD788\uBA74 \uAC8C\uC784\uC774 \uB05D\uB0A9\uB2C8\uB2E4.",
@@ -108,26 +106,22 @@ export const mountSnakeGame = (host: HTMLElement, locale: Locale) => {
       </div>
       <div class="snake-board-wrap">
         <canvas id="board" width="${BOARD_SIZE}" height="${BOARD_SIZE}" aria-label="Snake game board"></canvas>
+        <div id="joystick" class="joystick" hidden aria-hidden="true">
+          <div class="joystick-base"></div>
+          <div class="joystick-knob"></div>
+        </div>
         <div id="game-over-overlay" class="snake-overlay" hidden>
           <p class="snake-overlay-title">${text.gameOver}</p>
           <p class="snake-overlay-text">${text.finalScore}: <span id="final-score">0</span></p>
           <button id="restart" type="button">${text.restart}</button>
         </div>
       </div>
-      <div class="touch-controls" role="group" aria-label="${text.mobileControls}">
-        <button type="button" class="touch-btn up" data-dir="up" aria-label="Up">&#9650;</button>
-        <button type="button" class="touch-btn left" data-dir="left" aria-label="Left">&#9664;</button>
-        <button type="button" class="touch-btn down" data-dir="down" aria-label="Down">&#9660;</button>
-        <button type="button" class="touch-btn right" data-dir="right" aria-label="Right">&#9654;</button>
-      </div>
       <p class="snake-help">${text.help}</p>
       <section class="game-description" aria-label="${text.ariaDescription}">
         <h3>${text.descTitle1}</h3>
         <p>${text.descBody1}</p>
-
         <h3>${text.descTitle2}</h3>
         <p>${text.descBody2}</p>
-
         <h3>${text.descTitle3}</h3>
         <p>${text.descBody3}</p>
       </section>
@@ -141,11 +135,10 @@ export const mountSnakeGame = (host: HTMLElement, locale: Locale) => {
   const overlayEl = host.querySelector<HTMLDivElement>("#game-over-overlay");
   const restartBtn = host.querySelector<HTMLButtonElement>("#restart");
   const boardWrapEl = host.querySelector<HTMLDivElement>(".snake-board-wrap");
+  const joystickEl = host.querySelector<HTMLDivElement>("#joystick");
+  const joystickKnobEl = host.querySelector<HTMLDivElement>(".joystick-knob");
   const speedButtons = Array.from(
     host.querySelectorAll<HTMLButtonElement>(".speed-controls button[data-speed]"),
-  );
-  const touchButtons = Array.from(
-    host.querySelectorAll<HTMLButtonElement>(".touch-controls button[data-dir]"),
   );
 
   if (
@@ -156,8 +149,9 @@ export const mountSnakeGame = (host: HTMLElement, locale: Locale) => {
     !overlayEl ||
     !restartBtn ||
     !boardWrapEl ||
-    speedButtons.length !== 3 ||
-    touchButtons.length !== 4
+    !joystickEl ||
+    !joystickKnobEl ||
+    speedButtons.length !== 3
   ) {
     throw new Error("Snake game elements are missing.");
   }
@@ -177,7 +171,8 @@ export const mountSnakeGame = (host: HTMLElement, locale: Locale) => {
   let timerId: number | null = null;
   let heading: Point = { x: 1, y: 0 };
   let speedLevel: SpeedLevel = "normal";
-  let touchStart: Point | null = null;
+  let joystickPointerId: number | null = null;
+  let joystickOrigin: Point | null = null;
 
   const pointCenter = (point: Point) => ({
     x: point.x * CELL_SIZE + CELL_SIZE / 2,
@@ -357,11 +352,50 @@ export const mountSnakeGame = (host: HTMLElement, locale: Locale) => {
     if (!isOpposite) nextDirection = candidate;
   };
 
-  const setDirectionByName = (dir: string) => {
+  const setDirectionByName = (dir: DirectionName) => {
     if (dir === "up") setDirection({ x: 0, y: -1 });
     if (dir === "down") setDirection({ x: 0, y: 1 });
     if (dir === "left") setDirection({ x: -1, y: 0 });
     if (dir === "right") setDirection({ x: 1, y: 0 });
+  };
+
+  const updateDirectionByDelta = (dx: number, dy: number) => {
+    const threshold = 14;
+    if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) return;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      setDirectionByName(dx > 0 ? "right" : "left");
+    } else {
+      setDirectionByName(dy > 0 ? "down" : "up");
+    }
+  };
+
+  const moveJoystickKnob = (dx: number, dy: number) => {
+    const radius = 34;
+    const distance = Math.hypot(dx, dy);
+    const scale = distance > radius ? radius / distance : 1;
+    joystickKnobEl.style.transform = `translate(${dx * scale}px, ${dy * scale}px)`;
+  };
+
+  const showJoystick = (x: number, y: number) => {
+    joystickEl.hidden = false;
+    joystickEl.style.left = `${x}px`;
+    joystickEl.style.top = `${y}px`;
+    joystickKnobEl.style.transform = "translate(0, 0)";
+  };
+
+  const hideJoystick = () => {
+    joystickEl.hidden = true;
+    joystickKnobEl.style.transform = "translate(0, 0)";
+    joystickPointerId = null;
+    joystickOrigin = null;
+  };
+
+  const pointFromClient = (clientX: number, clientY: number): Point => {
+    const rect = boardWrapEl.getBoundingClientRect();
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+    };
   };
 
   const handleKeydown = (event: KeyboardEvent) => {
@@ -425,59 +459,40 @@ export const mountSnakeGame = (host: HTMLElement, locale: Locale) => {
     if (!gameOver) startTickTimer();
   };
 
-  const handleTouchButton = (event: Event) => {
-    const button = event.currentTarget as HTMLButtonElement;
-    const dir = button.dataset.dir;
-    if (!dir || gameOver) return;
-    setDirectionByName(dir);
+  const handlePointerDown = (event: PointerEvent) => {
+    if (gameOver) return;
+    joystickPointerId = event.pointerId;
+    joystickOrigin = pointFromClient(event.clientX, event.clientY);
+    showJoystick(joystickOrigin.x, joystickOrigin.y);
+    boardWrapEl.setPointerCapture(event.pointerId);
+    event.preventDefault();
   };
 
-  const handleTouchStart = (event: TouchEvent) => {
-    if (event.touches.length !== 1) return;
-    const touch = event.touches[0];
-    touchStart = { x: touch.clientX, y: touch.clientY };
+  const handlePointerMove = (event: PointerEvent) => {
+    if (joystickPointerId !== event.pointerId || !joystickOrigin) return;
+    const current = pointFromClient(event.clientX, event.clientY);
+    const dx = current.x - joystickOrigin.x;
+    const dy = current.y - joystickOrigin.y;
+    moveJoystickKnob(dx, dy);
+    updateDirectionByDelta(dx, dy);
+    event.preventDefault();
   };
 
-  const handleTouchMove = (event: TouchEvent) => {
-    if (touchStart) event.preventDefault();
-  };
-
-  const handleTouchEnd = (event: TouchEvent) => {
-    if (!touchStart || gameOver) {
-      touchStart = null;
-      return;
+  const handlePointerUp = (event: PointerEvent) => {
+    if (joystickPointerId !== event.pointerId) return;
+    if (boardWrapEl.hasPointerCapture(event.pointerId)) {
+      boardWrapEl.releasePointerCapture(event.pointerId);
     }
-
-    const touch = event.changedTouches[0];
-    if (!touch) {
-      touchStart = null;
-      return;
-    }
-
-    const dx = touch.clientX - touchStart.x;
-    const dy = touch.clientY - touchStart.y;
-    const minSwipe = 24;
-    if (Math.abs(dx) < minSwipe && Math.abs(dy) < minSwipe) {
-      touchStart = null;
-      return;
-    }
-
-    if (Math.abs(dx) > Math.abs(dy)) {
-      setDirectionByName(dx > 0 ? "right" : "left");
-    } else {
-      setDirectionByName(dy > 0 ? "down" : "up");
-    }
-
-    touchStart = null;
+    hideJoystick();
   };
 
   window.addEventListener("keydown", handleKeydown);
   restartBtn.addEventListener("click", handleRestart);
   speedButtons.forEach((button) => button.addEventListener("click", handleSpeedChange));
-  touchButtons.forEach((button) => button.addEventListener("click", handleTouchButton));
-  boardWrapEl.addEventListener("touchstart", handleTouchStart, { passive: true });
-  boardWrapEl.addEventListener("touchmove", handleTouchMove, { passive: false });
-  boardWrapEl.addEventListener("touchend", handleTouchEnd);
+  boardWrapEl.addEventListener("pointerdown", handlePointerDown);
+  boardWrapEl.addEventListener("pointermove", handlePointerMove);
+  boardWrapEl.addEventListener("pointerup", handlePointerUp);
+  boardWrapEl.addEventListener("pointercancel", handlePointerUp);
 
   startGame();
 
@@ -486,9 +501,9 @@ export const mountSnakeGame = (host: HTMLElement, locale: Locale) => {
     window.removeEventListener("keydown", handleKeydown);
     restartBtn.removeEventListener("click", handleRestart);
     speedButtons.forEach((button) => button.removeEventListener("click", handleSpeedChange));
-    touchButtons.forEach((button) => button.removeEventListener("click", handleTouchButton));
-    boardWrapEl.removeEventListener("touchstart", handleTouchStart);
-    boardWrapEl.removeEventListener("touchmove", handleTouchMove);
-    boardWrapEl.removeEventListener("touchend", handleTouchEnd);
+    boardWrapEl.removeEventListener("pointerdown", handlePointerDown);
+    boardWrapEl.removeEventListener("pointermove", handlePointerMove);
+    boardWrapEl.removeEventListener("pointerup", handlePointerUp);
+    boardWrapEl.removeEventListener("pointercancel", handlePointerUp);
   };
 };

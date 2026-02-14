@@ -17,21 +17,26 @@
 
 body {
   margin: 0;
-  min-width: 320px;
   min-height: 100vh;
-  overscroll-behavior-y: none;
+  overflow-x: hidden;
 }
 
 #app {
+  width: 100%;
   min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 24px;
+  display: block;
+  padding:
+    max(12px, env(safe-area-inset-top))
+    max(12px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom))
+    max(12px, env(safe-area-inset-left));
   touch-action: manipulation;
 }
 
 .launcher {
-  width: min(94vw, 760px);
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
   display: grid;
   gap: 20px;
   background: rgba(12, 21, 37, 0.8);
@@ -133,6 +138,7 @@ body {
   width: 100%;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   font-size: 0.9rem;
   color: #afbdd3;
@@ -160,8 +166,10 @@ body {
 }
 
 .snake-layout #board {
-  width: min(92vw, 576px);
-  height: min(92vw, 576px);
+  width: 100%;
+  max-width: 576px;
+  aspect-ratio: 1 / 1;
+  height: auto;
   border: 2px solid rgba(148, 163, 184, 0.45);
   border-radius: 16px;
   background: #0f172a;
@@ -172,9 +180,10 @@ body {
 
 .snake-board-wrap {
   position: relative;
-  display: inline-grid;
+  display: grid;
+  width: 100%;
+  max-width: 576px;
   touch-action: none;
-  overscroll-behavior: contain;
 }
 
 .snake-help {
@@ -183,48 +192,41 @@ body {
   text-align: center;
 }
 
-.touch-controls {
-  width: 100%;
-  max-width: 260px;
+.joystick {
+  position: absolute;
+  width: 96px;
+  height: 96px;
+  margin-left: -48px;
+  margin-top: -48px;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.joystick[hidden] {
   display: none;
-  grid-template-columns: repeat(3, minmax(52px, 1fr));
-  grid-template-areas:
-    ". up ."
-    "left down right";
-  gap: 8px;
-  user-select: none;
 }
 
-.touch-btn {
-  border: 1px solid rgba(100, 116, 139, 0.78);
-  border-radius: 12px;
-  background: rgba(15, 23, 42, 0.9);
-  color: #e6edf7;
-  height: 48px;
-  font-size: 1.15rem;
-  font-weight: 700;
-  cursor: pointer;
+.joystick-base {
+  width: 96px;
+  height: 96px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.36);
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.14);
 }
 
-.touch-btn:active {
-  transform: scale(0.98);
-  filter: brightness(1.08);
-}
-
-.touch-btn.up {
-  grid-area: up;
-}
-
-.touch-btn.left {
-  grid-area: left;
-}
-
-.touch-btn.down {
-  grid-area: down;
-}
-
-.touch-btn.right {
-  grid-area: right;
+.joystick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  margin-left: -20px;
+  margin-top: -20px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.78);
+  border: 1px solid rgba(191, 219, 254, 0.8);
+  transition: transform 0.04s linear;
 }
 
 .game-description {
@@ -302,7 +304,6 @@ body {
 
 @media (max-width: 700px) {
   .launcher {
-    width: min(96vw, 760px);
     padding: 14px;
     border-radius: 16px;
     gap: 14px;
@@ -314,15 +315,6 @@ body {
 
   .snake-layout {
     gap: 10px;
-  }
-
-  .snake-layout #board {
-    width: min(96vw, 576px);
-    height: min(96vw, 576px);
-  }
-
-  .touch-controls {
-    display: grid;
   }
 
   .game-description {
