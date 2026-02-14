@@ -19,6 +19,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  overscroll-behavior-y: none;
 }
 
 #app {
@@ -26,6 +27,7 @@ body {
   display: grid;
   place-items: center;
   padding: 24px;
+  touch-action: manipulation;
 }
 
 .launcher {
@@ -171,12 +173,58 @@ body {
 .snake-board-wrap {
   position: relative;
   display: inline-grid;
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 
 .snake-help {
   margin: 0;
   color: #c4d1e4;
   text-align: center;
+}
+
+.touch-controls {
+  width: 100%;
+  max-width: 260px;
+  display: none;
+  grid-template-columns: repeat(3, minmax(52px, 1fr));
+  grid-template-areas:
+    ". up ."
+    "left down right";
+  gap: 8px;
+  user-select: none;
+}
+
+.touch-btn {
+  border: 1px solid rgba(100, 116, 139, 0.78);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #e6edf7;
+  height: 48px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.touch-btn:active {
+  transform: scale(0.98);
+  filter: brightness(1.08);
+}
+
+.touch-btn.up {
+  grid-area: up;
+}
+
+.touch-btn.left {
+  grid-area: left;
+}
+
+.touch-btn.down {
+  grid-area: down;
+}
+
+.touch-btn.right {
+  grid-area: right;
 }
 
 .game-description {
@@ -254,11 +302,30 @@ body {
 
 @media (max-width: 700px) {
   .launcher {
-    padding: 18px;
+    width: min(96vw, 760px);
+    padding: 14px;
     border-radius: 16px;
+    gap: 14px;
   }
 
   .launcher-header h1 {
     font-size: 1.85rem;
+  }
+
+  .snake-layout {
+    gap: 10px;
+  }
+
+  .snake-layout #board {
+    width: min(96vw, 576px);
+    height: min(96vw, 576px);
+  }
+
+  .touch-controls {
+    display: grid;
+  }
+
+  .game-description {
+    padding: 12px 13px;
   }
 }

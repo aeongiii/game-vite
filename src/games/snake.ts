@@ -30,6 +30,7 @@ const textByLocale: Record<
     speedSlow: string;
     speedNormal: string;
     speedFast: string;
+    mobileControls: string;
     descTitle1: string;
     descBody1: string;
     descTitle2: string;
@@ -46,11 +47,12 @@ const textByLocale: Record<
     gameOver: "Game Over",
     finalScore: "Final Score",
     restart: "Restart",
-    help: "Arrow keys / WASD to move",
+    help: "Arrow keys / WASD / swipe / touch pad",
     speed: "Speed",
     speedSlow: "Slow",
     speedNormal: "Normal",
     speedFast: "Fast",
+    mobileControls: "Touch Controls",
     descTitle1: "How To Play",
     descBody1:
       "Snake is a classic arcade game where you control a moving snake. Use the arrow keys or WASD keys to change direction. Collect apples to increase your score. Do not hit the wall or your own body.",
@@ -69,11 +71,12 @@ const textByLocale: Record<
     gameOver: "\uAC8C\uC784 \uC624\uBC84",
     finalScore: "\uCD5C\uC885 \uC810\uC218",
     restart: "\uB2E4\uC2DC \uC2DC\uC791",
-    help: "\uBC29\uD5A5\uD0A4 / WASD \uD0A4\uB85C \uC774\uB3D9",
+    help: "\uBC29\uD5A5\uD0A4 / WASD / \uC2A4\uC640\uC774\uD504 / \uD130\uCE58 \uD328\uB4DC",
     speed: "\uC18D\uB3C4",
     speedSlow: "\uB290\uB9BC",
     speedNormal: "\uBCF4\uD1B5",
     speedFast: "\uBE60\uB984",
+    mobileControls: "\uD130\uCE58 \uC870\uC791",
     descTitle1: "\uAC8C\uC784 \uBC29\uBC95",
     descBody1:
       "\uC2A4\uB124\uC774\uD06C\uB294 \uC6C0\uC9C1\uC774\uB294 \uBC40\uC744 \uC870\uC791\uD558\uB294 \uD074\uB798\uC2DD \uC544\uCF00\uC774\uB4DC \uAC8C\uC784\uC785\uB2C8\uB2E4. \uBC29\uD5A5\uD0A4 \uB610\uB294 WASD \uD0A4\uB85C \uBC29\uD5A5\uC744 \uBC14\uAFB8\uC138\uC694. \uC0AC\uACFC\uB97C \uBA39\uC73C\uBA74 \uC810\uC218\uAC00 \uC62C\uB77C\uAC11\uB2C8\uB2E4. \uBCBD\uC774\uB098 \uC790\uC2E0\uC758 \uBAB8\uC5D0 \uBD80\uB52A\uD788\uBA74 \uAC8C\uC784\uC774 \uB05D\uB0A9\uB2C8\uB2E4.",
@@ -111,6 +114,12 @@ export const mountSnakeGame = (host: HTMLElement, locale: Locale) => {
           <button id="restart" type="button">${text.restart}</button>
         </div>
       </div>
+      <div class="touch-controls" role="group" aria-label="${text.mobileControls}">
+        <button type="button" class="touch-btn up" data-dir="up" aria-label="Up">&#9650;</button>
+        <button type="button" class="touch-btn left" data-dir="left" aria-label="Left">&#9664;</button>
+        <button type="button" class="touch-btn down" data-dir="down" aria-label="Down">&#9660;</button>
+        <button type="button" class="touch-btn right" data-dir="right" aria-label="Right">&#9654;</button>
+      </div>
       <p class="snake-help">${text.help}</p>
       <section class="game-description" aria-label="${text.ariaDescription}">
         <h3>${text.descTitle1}</h3>
@@ -131,8 +140,12 @@ export const mountSnakeGame = (host: HTMLElement, locale: Locale) => {
   const finalScoreEl = host.querySelector<HTMLSpanElement>("#final-score");
   const overlayEl = host.querySelector<HTMLDivElement>("#game-over-overlay");
   const restartBtn = host.querySelector<HTMLButtonElement>("#restart");
+  const boardWrapEl = host.querySelector<HTMLDivElement>(".snake-board-wrap");
   const speedButtons = Array.from(
     host.querySelectorAll<HTMLButtonElement>(".speed-controls button[data-speed]"),
+  );
+  const touchButtons = Array.from(
+    host.querySelectorAll<HTMLButtonElement>(".touch-controls button[data-dir]"),
   );
 
   if (
@@ -142,7 +155,9 @@ export const mountSnakeGame = (host: HTMLElement, locale: Locale) => {
     !finalScoreEl ||
     !overlayEl ||
     !restartBtn ||
-    speedButtons.length !== 3
+    !boardWrapEl ||
+    speedButtons.length !== 3 ||
+    touchButtons.length !== 4
   ) {
     throw new Error("Snake game elements are missing.");
   }
@@ -162,6 +177,7 @@ export const mountSnakeGame = (host: HTMLElement, locale: Locale) => {
   let timerId: number | null = null;
   let heading: Point = { x: 1, y: 0 };
   let speedLevel: SpeedLevel = "normal";
+  let touchStart: Point | null = null;
 
   const pointCenter = (point: Point) => ({
     x: point.x * CELL_SIZE + CELL_SIZE / 2,
@@ -198,28 +214,26 @@ export const mountSnakeGame = (host: HTMLElement, locale: Locale) => {
     const bodyPoints = snake.slice(1).reverse().map(pointCenter);
     bodyPoints.push(headCenter);
 
-    if (bodyPoints.length > 0) {
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
 
-      ctx.lineWidth = CELL_SIZE * 0.28;
-      ctx.strokeStyle = "rgba(148, 163, 184, 0.55)";
-      ctx.beginPath();
-      ctx.moveTo(bodyPoints[0].x, bodyPoints[0].y);
-      for (let i = 1; i < bodyPoints.length; i += 1) {
-        ctx.lineTo(bodyPoints[i].x, bodyPoints[i].y);
-      }
-      ctx.stroke();
-
-      ctx.lineWidth = CELL_SIZE * 0.84;
-      ctx.strokeStyle = "#16a34a";
-      ctx.beginPath();
-      ctx.moveTo(bodyPoints[0].x, bodyPoints[0].y);
-      for (let i = 1; i < bodyPoints.length; i += 1) {
-        ctx.lineTo(bodyPoints[i].x, bodyPoints[i].y);
-      }
-      ctx.stroke();
+    ctx.lineWidth = CELL_SIZE * 0.28;
+    ctx.strokeStyle = "rgba(148, 163, 184, 0.55)";
+    ctx.beginPath();
+    ctx.moveTo(bodyPoints[0].x, bodyPoints[0].y);
+    for (let i = 1; i < bodyPoints.length; i += 1) {
+      ctx.lineTo(bodyPoints[i].x, bodyPoints[i].y);
     }
+    ctx.stroke();
+
+    ctx.lineWidth = CELL_SIZE * 0.84;
+    ctx.strokeStyle = "#16a34a";
+    ctx.beginPath();
+    ctx.moveTo(bodyPoints[0].x, bodyPoints[0].y);
+    for (let i = 1; i < bodyPoints.length; i += 1) {
+      ctx.lineTo(bodyPoints[i].x, bodyPoints[i].y);
+    }
+    ctx.stroke();
 
     const head = headCenter;
     const angle = Math.atan2(heading.y, heading.x);
@@ -343,6 +357,13 @@ export const mountSnakeGame = (host: HTMLElement, locale: Locale) => {
     if (!isOpposite) nextDirection = candidate;
   };
 
+  const setDirectionByName = (dir: string) => {
+    if (dir === "up") setDirection({ x: 0, y: -1 });
+    if (dir === "down") setDirection({ x: 0, y: 1 });
+    if (dir === "left") setDirection({ x: -1, y: 0 });
+    if (dir === "right") setDirection({ x: 1, y: 0 });
+  };
+
   const handleKeydown = (event: KeyboardEvent) => {
     const key = event.key.toLowerCase();
 
@@ -367,10 +388,10 @@ export const mountSnakeGame = (host: HTMLElement, locale: Locale) => {
       event.preventDefault();
     }
 
-    if (key === "arrowup" || key === "w") setDirection({ x: 0, y: -1 });
-    if (key === "arrowdown" || key === "s") setDirection({ x: 0, y: 1 });
-    if (key === "arrowleft" || key === "a") setDirection({ x: -1, y: 0 });
-    if (key === "arrowright" || key === "d") setDirection({ x: 1, y: 0 });
+    if (key === "arrowup" || key === "w") setDirectionByName("up");
+    if (key === "arrowdown" || key === "s") setDirectionByName("down");
+    if (key === "arrowleft" || key === "a") setDirectionByName("left");
+    if (key === "arrowright" || key === "d") setDirectionByName("right");
   };
 
   const startGame = () => {
@@ -393,6 +414,7 @@ export const mountSnakeGame = (host: HTMLElement, locale: Locale) => {
   };
 
   const handleRestart = () => startGame();
+
   const handleSpeedChange = (event: Event) => {
     const button = event.currentTarget as HTMLButtonElement;
     const nextSpeed = button.dataset.speed as SpeedLevel | undefined;
@@ -403,9 +425,60 @@ export const mountSnakeGame = (host: HTMLElement, locale: Locale) => {
     if (!gameOver) startTickTimer();
   };
 
+  const handleTouchButton = (event: Event) => {
+    const button = event.currentTarget as HTMLButtonElement;
+    const dir = button.dataset.dir;
+    if (!dir || gameOver) return;
+    setDirectionByName(dir);
+  };
+
+  const handleTouchStart = (event: TouchEvent) => {
+    if (event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    touchStart = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleTouchMove = (event: TouchEvent) => {
+    if (touchStart) event.preventDefault();
+  };
+
+  const handleTouchEnd = (event: TouchEvent) => {
+    if (!touchStart || gameOver) {
+      touchStart = null;
+      return;
+    }
+
+    const touch = event.changedTouches[0];
+    if (!touch) {
+      touchStart = null;
+      return;
+    }
+
+    const dx = touch.clientX - touchStart.x;
+    const dy = touch.clientY - touchStart.y;
+    const minSwipe = 24;
+    if (Math.abs(dx) < minSwipe && Math.abs(dy) < minSwipe) {
+      touchStart = null;
+      return;
+    }
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+      setDirectionByName(dx > 0 ? "right" : "left");
+    } else {
+      setDirectionByName(dy > 0 ? "down" : "up");
+    }
+
+    touchStart = null;
+  };
+
   window.addEventListener("keydown", handleKeydown);
   restartBtn.addEventListener("click", handleRestart);
   speedButtons.forEach((button) => button.addEventListener("click", handleSpeedChange));
+  touchButtons.forEach((button) => button.addEventListener("click", handleTouchButton));
+  boardWrapEl.addEventListener("touchstart", handleTouchStart, { passive: true });
+  boardWrapEl.addEventListener("touchmove", handleTouchMove, { passive: false });
+  boardWrapEl.addEventListener("touchend", handleTouchEnd);
+
   startGame();
 
   return () => {
@@ -413,5 +486,9 @@ export const mountSnakeGame = (host: HTMLElement, locale: Locale) => {
     window.removeEventListener("keydown", handleKeydown);
     restartBtn.removeEventListener("click", handleRestart);
     speedButtons.forEach((button) => button.removeEventListener("click", handleSpeedChange));
+    touchButtons.forEach((button) => button.removeEventListener("click", handleTouchButton));
+    boardWrapEl.removeEventListener("touchstart", handleTouchStart);
+    boardWrapEl.removeEventListener("touchmove", handleTouchMove);
+    boardWrapEl.removeEventListener("touchend", handleTouchEnd);
   };
 };
